@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8" />
+<title>Hospital Management</title>
+</head>
+<body>
+
+<!-- CHANGE THIS to your Render backend URL after deploying it -->
+<script>
+  const API_BASE = "http://localhost:3000";
+</script>
+
+<h2>Register</h2>
+<input id="regUsername" placeholder="Username"><br>
+<input id="regEmail" placeholder="Email"><br>
+<input id="regPassword" type="password" placeholder="Password"><br>
+<button onclick="register()">Register</button>
+
+<h2>Login</h2>
+<input id="loginUsername" placeholder="Username"><br>
+<input id="loginPassword" type="password" placeholder="Password"><br>
+<button onclick="login()">Login</button>
+<button onclick="logout()">Logout</button>
+
+<p id="status">Not logged in</p>
+
+<h2>Hospitals</h2>
+<button onclick="loadHospitals(false)">Show All</button>
+<button onclick="loadHospitals(true)">Show Available Only</button>
+<div id="hospitalList"></div>
+
+<h2>Add Hospital</h2>
+<input id="hName" placeholder="Name"><br>
+<input id="hCity" placeholder="City"><br>
+<input id="hTotal" type="number" placeholder="Total Beds"><br>
+<input id="hAvailable" type="number" placeholder="Available Beds"><br>
+<button onclick="addHospital()">Add Hospital</button>
+
+<h2>Log</h2>
+<pre id="log"></pre>
+
+<script>
+function log(msg) {
+    document.getElementById('log').textContent = msg + "\n" + document.getElementById('log').textContent;
+}
+
+async function api(path, options = {}) {
+    const res = await fetch(API_BASE + path, {
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        ...options
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+        log("Error: " + (data.message || res.status));
+        throw new Error(data.message || "Request failed");
+    }
+    return data;
+}
+
+async function register() {
+    const username = document.getElementById('regUsername').value;
+    const email = document.getElementById('regEmail').value;
+    const password = document.getElementById('regPassword').value;
+    try {
+        await api('/register', { method: 'POST', body: JSON.stringify({ username, email, password }) });
+        log("Registered. You can log in now.");
+    } catch (e) {}
+}
+
+async function login() {
+    const username = document.getElementById('loginUsername').value;
+    const password = document.getElementById('loginPassword').value;
+    try {
+        const data = await api('/login', { method: 'POST', body: JSON.stringify({ username, password }) });
+        document.getElementById('status').textContent = "Logged in as " + data.user.username;
+        log("Login successful.");
+        loadHospitals(false);
+    } catch (e) {}
+}
+
+async function logout() {
+    try {
+        await api('/logout', { method: 'POST' });
+        document.getElementById('status').textContent = "Not logged in";
+        log("Logged out.");
+    } catch (e) {}
+}
+
+async function loadHospitals(availableOnly) {
+    try {
+        const data = await api(availableOnly ? '/hospitals/available' : '/hospitals');
+        const listEl = document.getElementById('hospitalList');
+        listEl.innerHTML = "";
+        data.forEach(h => {
+            listEl.innerHTML += `<p>${h.name} - ${h.city} - ${h.availableBeds}/${h.totalBeds} beds
+                <button onclick="deleteHospital('${h._id}')">Delete</button></p>`;
+        });
+    } catch (e) {}
+}
+
+async function addHospital() {
+    const name = document.getElementById('hName').value;
+    const city = document.getElementById('hCity').value;
+    const totalBeds = Number(document.getElementById('hTotal').value);
+    const availableBeds = Number(document.getElementById('hAvailable').value);
+    try {
+        await api('/hospitals', { method: 'POST', body: JSON.stringify({ name, city, totalBeds, availableBeds }) });
+        log("Added hospital: " + name);
+        loadHospitals(false);
+    } catch (e) {}
+}
+
+async function deleteHospital(id) {
+    try {
+        await api('/hospitals/' + id, { method: 'DELETE' });
+        log("Deleted hospital.");
+        loadHospitals(false);
+    } catch (e) {}
+}
+</script>
+
+</body>
+</html>
